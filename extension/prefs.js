@@ -31,12 +31,14 @@ export default class OnyxPreferences extends ExtensionPreferences {
             'GNOME keeps its shell dark when Dark Style is off; on, it turns white'));
         look.add(this._switch(settings, 'accent', 'Monochrome accent',
             'White in dark mode, black in light mode; off keeps the system accent'));
+        look.add(this._switch(settings, 'soft', 'Soft',
+            'Dark grey instead of black, light grey instead of white, softer accent'));
         look.add(this._switch(settings, 'hairline', 'Hairline',
             'A 1 px edge around menus, dialogs and panels'));
 
         const overview = new Adw.PreferencesGroup({
             title: 'Overview',
-            description: 'Transparent lets Blur my Shell show through when it is on.',
+            description: 'Transparent shows the wallpaper behind the overview. With Blur my Shell\'s overview blur on, the surfaces are see-through in either style and show its blur.',
         });
         page.add(overview);
         const style = new Adw.ComboRow({
@@ -46,7 +48,7 @@ export default class OnyxPreferences extends ExtensionPreferences {
         overview.add(style);
         const opacity = new Adw.SpinRow({
             title: 'Opacity',
-            subtitle: 'Percent, when transparent',
+            subtitle: 'Percent, when transparent or with Blur my Shell',
             adjustment: new Gtk.Adjustment({lower: 0, upper: 100, step_increment: 5, page_increment: 10}),
         });
         overview.add(opacity);
@@ -55,7 +57,6 @@ export default class OnyxPreferences extends ExtensionPreferences {
             const i = STYLES.indexOf(settings.get_string('overview-style'));
             if (style.selected !== i)
                 style.selected = i;
-            opacity.sensitive = i === 1;
         };
         const syncOpacity = () => {
             const v = Math.round(settings.get_double('overview-opacity') * 100);

@@ -7,12 +7,23 @@ export const PALETTE = {
         surface: 0x00,
         text: 0xff,
         hairline: 0x26,
+        // Notification cards, lifted off the black so they stand out: the
+        // front card of a stack, the one behind it, and the rest.
+        card: {top: 0x3a, second: 0x2e, lower: 0x24},
     },
     light: {
         surface: 0xff,
         text: 0x00,
         hairline: 0xe0,
+        card: {top: 0xeb, second: 0xe3, lower: 0xdb},
     },
+};
+
+// Soft mode: every grey is squeezed between these ends, so black becomes a
+// dark grey, white a light grey, and the monochrome accent follows.
+export const SOFT = {
+    dark: {lo: 0x1c, hi: 0xe2},
+    light: {lo: 0x2a, hi: 0xf0},
 };
 
 // GNOME's dark greys sit between #222226 and #56565c; popups are #36363a,

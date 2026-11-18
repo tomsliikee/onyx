@@ -12,6 +12,7 @@ import St from 'gi://St';
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import {Extension} from 'resource:///org/gnome/shell/extensions/extension.js';
 
+import {BlurMyShell, Wallpaper} from './lib/backdrop.js';
 import {AREA_NAMES, buildCss} from './lib/css.js';
 
 // A slider in the settings sends a burst of changes; one rebuild after it.
@@ -26,6 +27,8 @@ export default class OnyxExtension extends Extension {
         this._file = null;
         this._timeout = 0;
         this._installing = false;
+        this._wallpaper = null;
+        this._bms = new BlurMyShell(() => this._queue());
         // Another shell (a nested or headless one) can share the runtime dir.
         this._pid = new Gio.Credentials().get_unix_pid();
         this._context = St.ThemeContext.get_for_stage(global.stage);
@@ -57,6 +60,8 @@ export default class OnyxExtension extends Extension {
         this._settings.disconnect(this._settingsId);
         this._context.disconnect(this._contextId);
         this._setSessionScheme(this._sessionScheme);
+        this._bms.destroy();
+        this._bms = null;
         this._restore();
         this._settings = null;
         this._stSettings = null;
@@ -97,10 +102,28 @@ export default class OnyxExtension extends Extension {
             scheme,
             accent: s.get_boolean('accent'),
             hairline: s.get_boolean('hairline'),
+            soft: s.get_boolean('soft'),
             areas: Object.fromEntries(AREA_NAMES.map(a => [a, s.get_boolean(`area-${a}`)])),
-            overviewTransparent: s.get_string('overview-style') === 'transparent',
+            // Blur my Shell's overview blur turns the surfaces see-through
+            // in either style; solid without it stays solid.
+            overviewTransparent: this._ownWallpaper() || this._bms.blursOverview,
             overviewOpacity: s.get_double('overview-opacity'),
         };
+    }
+
+    // Transparent without Blur my Shell: Onyx shows the wallpaper itself.
+    _ownWallpaper() {
+        return this._settings.get_string('overview-style') === 'transparent' &&
+            this._settings.get_boolean('area-overview') && !this._bms.blursOverview;
+    }
+
+    _syncWallpaper(want) {
+        if (want && !this._wallpaper) {
+            this._wallpaper = new Wallpaper();
+        } else if (!want && this._wallpaper) {
+            this._wallpaper.destroy();
+            this._wallpaper = null;
+        }
     }
 
     _apply() {
@@ -138,6 +161,7 @@ export default class OnyxExtension extends Extension {
         this._file = file;
         if (old && !old.equal(file))
             this._delete(old);
+        this._syncWallpaper(this._ownWallpaper());
     }
 
     _isInstalled() {
@@ -163,6 +187,7 @@ export default class OnyxExtension extends Extension {
     }
 
     _restore() {
+        this._syncWallpaper(false);
         if (!this._file)
             return;
         const installed = this._isInstalled();

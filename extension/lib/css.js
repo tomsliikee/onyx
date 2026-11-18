@@ -16,7 +16,7 @@ import {parseRules} from './theme.js';
 import {
     PALETTE, DARK_SHIFT, DARK_STRETCH, DARK_WHITE_FROM, DARK_SURFACE_UP_TO,
     LIGHT_LIFT, LIGHT_SURFACE_FROM, LIGHT_BLACK_UP_TO, NEUTRAL_SPREAD,
-    HAIRLINE_WIDTH_PX,
+    HAIRLINE_WIDTH_PX, SOFT,
 } from './palette.js';
 
 export const AREA_NAMES = Object.keys(AREAS);
@@ -39,6 +39,16 @@ export const DARK_IN_LIGHT = ['.screenshot-ui', '.osd-window', '.workspace-switc
     '.osd-break', ...OVERVIEW_SURFACES, '#keyboard', '.keyboard-key',
     '.word-suggestions', '.emoji-panel'];
 
+// The notification card itself (in the list and as a banner); its buttons
+// and the lock screen's notifications are not cards.
+const isCard = selector => /^\.message(:[a-z-]+)*$/.test(selector);
+// GNOME's card colours in each scheme, by place in a stack.
+const GNOME_CARD = {
+    dark: {'#47474c': 'top', '#54545a': 'top', '#45454a': 'second', '#3d3d42': 'lower'},
+    light: {'#ffffff': 'top', 'whitesmoke': 'second', '#ededed': 'lower'},
+};
+const CARD_MARK = /@card-(top|second|lower)@/g;
+
 // Overlays on top of the screen picture; they stay dark in light too.
 const NOT_INVERTED = ['.screenshot-ui-area', '.screenshot-ui-screen-selector',
     '.screenshot-ui-window-selector', '.pad-osd'];
@@ -50,6 +60,12 @@ export const HAIRLINE = {
     osd: ['.osd-window', '.screenshot-ui-panel', '.workspace-switcher'],
     dialogs: ['.modal-dialog', '.switcher-list'],
     overview: ['#dash .dash-background', '.search-section-content'],
+};
+
+/** One grey squeezed between the soft ends of a scheme. */
+export const soften = (v, scheme) => {
+    const {lo, hi} = SOFT[scheme];
+    return Math.round(lo + v * (hi - lo) / 255);
 };
 
 const clamp = v => Math.max(0, Math.min(255, Math.round(v)));
@@ -125,6 +141,16 @@ function mapAccent(value, scheme) {
 }
 
 // st-lighten on an inverted colour has to darken, and the other way round.
+/** Squeezes every opaque grey literal of a value between the soft ends. */
+export function softenColours(value, scheme) {
+    return value.replace(COLOUR, text => {
+        const c = readColour(text);
+        if (c.a < 1 || Math.max(c.r, c.g, c.b) - Math.min(c.r, c.g, c.b) > NEUTRAL_SPREAD)
+            return text;
+        return grey(soften(Math.round((c.r + c.g + c.b) / 3), scheme));
+    });
+}
+
 const swapLighten = value => value.replace(/st-(lighten|darken)\(/g,
     (_, f) => f === 'lighten' ? 'st-darken(' : 'st-lighten(');
 
@@ -132,10 +158,16 @@ const swapLighten = value => value.replace(/st-(lighten|darken)\(/g,
  * The new value of one declaration, or null when Onyx leaves it to GNOME.
  * @param {{prop: string, value: string}} decl
  * @param {{scheme: 'dark'|'light', accent: boolean, island: boolean,
- *          overviewAlpha: number|null}} how
+ *          overviewAlpha: number|null, card?: boolean, soft?: boolean}} how
  */
 export function mapDecl(decl, how) {
     let {value} = decl;
+    // Card colours are marked first and filled in after the mapping.
+    const card = how.card && decl.prop.startsWith('background');
+    if (card) {
+        for (const [from, place] of Object.entries(GNOME_CARD[how.scheme]))
+            value = value.split(from).join(`@card-${place}@`);
+    }
     // Dark-in-light surfaces get the dark treatment and are then inverted.
     const scheme = how.island ? 'dark' : how.scheme;
     if (how.accent)
@@ -144,8 +176,14 @@ export function mapDecl(decl, how) {
     value = mapColours(value, scheme, invert);
     if (invert)
         value = swapLighten(value);
+    if (card)
+        value = value.replace(CARD_MARK, (_, place) => grey(PALETTE[how.scheme].card[place]));
+    if (how.soft)
+        value = softenColours(value, how.scheme);
     if (how.overviewAlpha !== null && decl.prop.startsWith('background')) {
-        const s = PALETTE[how.scheme].surface;
+        let s = PALETTE[how.scheme].surface;
+        if (how.soft)
+            s = soften(s, how.scheme);
         value = value.split(grey(s)).join(greyA(s, how.overviewAlpha));
     }
     return value === decl.value ? null : value;
@@ -160,6 +198,7 @@ const isIsland = selector =>
  * @property {'dark'|'light'} scheme
  * @property {boolean} accent      monochrome accent
  * @property {boolean} hairline
+ * @property {boolean} [soft]     greys squeezed: dark grey and light grey
  * @property {Record<string, boolean>} areas  one switch per AREA_NAMES
  * @property {boolean} overviewTransparent
  * @property {number} overviewOpacity 0..1, used when transparent
@@ -198,9 +237,11 @@ export function buildCss(gnomeCss, options) {
                 island: !original && options.scheme === 'light' && isIsland(selector),
                 overviewAlpha: !original && area === 'overview' &&
                     OVERVIEW_SURFACES.some(t => selector.includes(t)) ? alpha : null,
+                card: !original && area === 'calendar' && isCard(selector),
+                soft: options.soft === true,
                 original,
             };
-            const key = `${how.island}|${how.overviewAlpha}|${how.original}`;
+            const key = `${how.island}|${how.overviewAlpha}|${how.card}|${how.original}`;
             if (!groups.has(key))
                 groups.set(key, {how, selectors: []});
             groups.get(key).selectors.push(selector);
@@ -215,7 +256,8 @@ export function buildCss(gnomeCss, options) {
     }
 
     if (options.hairline) {
-        const colour = grey(PALETTE[options.scheme].hairline);
+        const h = PALETTE[options.scheme].hairline;
+        const colour = grey(options.soft ? soften(h, options.scheme) : h);
         for (const [area, selectors] of Object.entries(HAIRLINE)) {
             if (on(area))
                 out.push(`${selectors.join(', ')} { border: ${HAIRLINE_WIDTH_PX}px solid ${colour}; }`);

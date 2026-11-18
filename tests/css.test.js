@@ -1,6 +1,6 @@
 import Gio from 'gi://Gio';
 import {test, equal, done} from './harness.js';
-import {AREA_NAMES, DARK_IN_LIGHT, KEPT_DARK, buildCss, mapColours, mapDecl, mapGrey} from '../extension/lib/css.js';
+import {AREA_NAMES, DARK_IN_LIGHT, KEPT_DARK, buildCss, mapColours, mapDecl, mapGrey, softenColours} from '../extension/lib/css.js';
 import {areaOf} from '../extension/lib/areas.js';
 import {parseRules} from '../extension/lib/theme.js';
 
@@ -142,6 +142,31 @@ for (const scheme of ['dark', 'light']) {
         equal(value(h, '.popup-menu-content', 'background-color'), surface);
         // The backdrop around the workspaces stays opaque.
         equal((value(h, '#overviewGroup', 'background-color') ?? '').startsWith('rgba'), false);
+    });
+
+    test(`${scheme}: notification cards are grey, not the popup's colour`, () => {
+        const css = buildCss(GNOME[scheme], opts(scheme));
+        const card = scheme === 'dark' ? '#3a3a3a' : '#ebebeb';
+        const all = find(css, '.message').map(r => r.decls.find(d => d.prop === 'background-color')?.value).filter(Boolean);
+        equal([...new Set(all)], [card]);
+        equal(value(css, '.message:lower-in-stack', 'background-color'), scheme === 'dark' ? '#242424' : '#dbdbdb');
+        equal(value(css, '.message:hover', 'background-color'), `st-${scheme === 'dark' ? 'lighten' : 'darken'}(${card}, 4%)`);
+        // Buttons on the card and the lock screen's notifications are not cards.
+        equal((value(css, '.message .message-header .message-close-button', 'background-color') ?? '').includes(card), false);
+        const off = buildCss(GNOME[scheme], opts(scheme, {areas: {...allOn, calendar: false}}));
+        equal(value(off, '.message', 'background-color'), value(GNOME[scheme], '.message', 'background-color'));
+    });
+
+    test(`${scheme}: soft squeezes black and white, colours and shades stay`, () => {
+        const css = buildCss(GNOME[scheme], opts(scheme, {soft: true}));
+        const [surf, txt] = scheme === 'dark' ? ['#1c1c1c', '#e2e2e2'] : ['#f0f0f0', '#2a2a2a'];
+        equal(value(css, '.popup-menu-content', 'background-color'), surf);
+        equal(softenColours(scheme === 'dark' ? '#ffffff' : '#000000', scheme), txt);
+        const t = buildCss(GNOME[scheme], opts(scheme, {soft: true, overviewTransparent: true, overviewOpacity: 0.5}));
+        const v = parseInt(surf.slice(1, 3), 16);
+        equal(value(t, '.search-section-content', 'background-color'), `rgba(${v}, ${v}, ${v}, 0.5)`);
+        equal(mapColours('#c01c28', scheme), '#c01c28');
+        equal(softenColours('rgba(0, 0, 0, 0.3) #c01c28', scheme), 'rgba(0, 0, 0, 0.3) #c01c28');
     });
 }
 

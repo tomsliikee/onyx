@@ -16,13 +16,18 @@
       <summary>Light shell with light apps</summary>
       <description>GNOME keeps its shell dark unless the colour scheme is "prefer-light". On, the shell turns light whenever Dark Style is off.</description>
     </key>
+    <key name="soft" type="b">
+      <default>false</default>
+      <summary>Soft mode</summary>
+      <description>Dark grey instead of black, light grey instead of white, and a softer monochrome accent.</description>
+    </key>
     <key name="hairline" type="b">
       <default>true</default>
       <summary>Hairline around floating surfaces</summary>
     </key>
     <key name="overview-style" enum="org.gnome.shell.extensions.onyx.overview-style">
       <default>'solid'</default>
-      <summary>Overview surfaces solid or transparent</summary>
+      <summary>Overview solid or transparent (wallpaper behind); Blur my Shell's overview blur makes the surfaces see-through in either</summary>
     </key>
     <key name="overview-opacity" type="d">
       <range min="0" max="1"/>
