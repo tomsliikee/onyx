@@ -1,0 +1,7 @@
+{
+    "uuid": "onyx@thomashaiden",
+    "name": "Onyx",
+    "description": "True black in dark mode, true white in light mode, and a monochrome accent for GNOME Shell's menus, Quick Settings, calendar, notifications, OSD, screenshot UI, dialogs and overview. The top bar is left alone.",
+    "shell-version": ["50"],
+    "settings-schema": "org.gnome.shell.extensions.onyx"
+}

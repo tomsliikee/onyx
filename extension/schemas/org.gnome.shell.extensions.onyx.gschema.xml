@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <enum id="org.gnome.shell.extensions.onyx.overview-style">
+    <value nick="solid" value="0"/>
+    <value nick="transparent" value="1"/>
+  </enum>
+
+  <schema id="org.gnome.shell.extensions.onyx" path="/org/gnome/shell/extensions/onyx/">
+    <key name="accent" type="b">
+      <default>true</default>
+      <summary>Monochrome accent</summary>
+      <description>White in dark mode, black in light mode. Off keeps the system accent colour.</description>
+    </key>
+    <key name="light-shell" type="b">
+      <default>true</default>
+      <summary>Light shell with light apps</summary>
+      <description>GNOME keeps its shell dark unless the colour scheme is "prefer-light". On, the shell turns light whenever Dark Style is off.</description>
+    </key>
+    <key name="hairline" type="b">
+      <default>true</default>
+      <summary>Hairline around floating surfaces</summary>
+    </key>
+    <key name="overview-style" enum="org.gnome.shell.extensions.onyx.overview-style">
+      <default>'solid'</default>
+      <summary>Overview surfaces solid or transparent</summary>
+    </key>
+    <key name="overview-opacity" type="d">
+      <range min="0" max="1"/>
+      <default>0.6</default>
+      <summary>Opacity of the overview surfaces when transparent</summary>
+    </key>
+    <key name="area-menus" type="b">
+      <default>true</default>
+      <summary>Quick Settings and menus</summary>
+    </key>
+    <key name="area-calendar" type="b">
+      <default>true</default>
+      <summary>Calendar and notifications</summary>
+    </key>
+    <key name="area-osd" type="b">
+      <default>true</default>
+      <summary>Screenshot UI and OSD</summary>
+    </key>
+    <key name="area-dialogs" type="b">
+      <default>true</default>
+      <summary>Dialogs, Alt-Tab and on-screen keyboard</summary>
+    </key>
+    <key name="area-overview" type="b">
+      <default>true</default>
+      <summary>Overview: dash, search, app folders</summary>
+    </key>
+  </schema>
+</schemalist>
