@@ -9,6 +9,7 @@
 #
 #   ONYX_SCHEME=light|dark   the desktop's colour scheme at start (default dark).
 #   ONYX_WITH="<uuid>[=<path>] ..."  loads other extensions too (Blur my Shell).
+#   ONYX_WALLPAPER=<uri>     a picture instead of the plain blue.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -38,6 +39,7 @@ done
 ln -sfn "${XDG_DATA_HOME:-$HOME/.local/share}/fonts" "$ENV/data/fonts"
 
 export ENABLED="[$EXTRA\"onyx@thomashaiden\", \"onyx-driver@test\"]"
+export ONYX_WALLPAPER="${ONYX_WALLPAPER:-}"
 export ONYX_SCHEME="${ONYX_SCHEME:-dark}"
 export ONYX_SCRIPT="$HERE/scripts/$1.js"
 export ONYX_SECONDS="${2:-60}"
@@ -52,7 +54,13 @@ gsettings set org.gnome.shell welcome-dialog-last-shown-version "99"
 gsettings set org.gnome.desktop.interface color-scheme "$( [ "$ONYX_SCHEME" = dark ] && echo prefer-dark || echo default )"
 gsettings set org.gnome.desktop.interface enable-hot-corners false
 gsettings set org.gnome.mutter dynamic-workspaces false
-gsettings set org.gnome.desktop.background picture-options none
-gsettings set org.gnome.desktop.background color-shading-type solid
-gsettings set org.gnome.desktop.background primary-color "#3a4a6b"
+if [ -n "${ONYX_WALLPAPER:-}" ]; then
+    gsettings set org.gnome.desktop.background picture-uri "$ONYX_WALLPAPER"
+    gsettings set org.gnome.desktop.background picture-uri-dark "$ONYX_WALLPAPER"
+    gsettings set org.gnome.desktop.background picture-options zoom
+else
+    gsettings set org.gnome.desktop.background picture-options none
+    gsettings set org.gnome.desktop.background color-shading-type solid
+    gsettings set org.gnome.desktop.background primary-color "#3a4a6b"
+fi
 timeout -k 10 "$ONYX_SECONDS" gnome-shell --headless --virtual-monitor 1280x800 --wayland-display onyx-test --no-x11 2>&1'

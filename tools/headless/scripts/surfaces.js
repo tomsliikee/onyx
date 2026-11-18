@@ -103,7 +103,9 @@ export default async function ({extension, settings, desktop, shot, sleep, note,
     settings.reset('area-menus');
     await sleep(500);
 
-    const stylesheets = () => St.ThemeContext.get_for_stage(global.stage).get_theme().get_custom_stylesheets().length;
+    const theme = () => St.ThemeContext.get_for_stage(global.stage).get_theme();
+    const stylesheets = () => theme().get_custom_stylesheets().length;
+    const base = () => theme().default_stylesheet?.get_basename();
     const before = stylesheets();
     for (let i = 0; i < 10; i++) {
         extension.disable();
@@ -111,17 +113,29 @@ export default async function ({extension, settings, desktop, shot, sleep, note,
         extension.enable();
         await sleep(150);
     }
-    note(`lifecycle: custom sheets before=${before} after=${stylesheets()}`);
+    note(`lifecycle: custom sheets before=${before} after=${stylesheets()}, default sheet ${base()}`);
     extension.disable();
     await sleep(200);
     const dir = Gio.File.new_for_path(extension._dir);
     const left = [];
     const it = dir.enumerate_children('standard::name', 0, null);
-    for (let info; (info = it.next_file(null));)
-        left.push(info.get_name());
-    note(`disabled: custom sheets=${stylesheets()} files left=${JSON.stringify(left)}`);
+    // Only this shell's files; another shell can share the runtime dir.
+    for (let info; (info = it.next_file(null));) {
+        if (info.get_name().startsWith(`onyx-${extension._pid}-`))
+            left.push(info.get_name());
+    }
+    note(`disabled: custom sheets=${stylesheets()}, default sheet ${base()}, files left=${JSON.stringify(left)}`);
     extension.enable();
     await sleep(500);
+
+    // High contrast hands back to GNOME's own sheet, and Onyx returns after.
+    const a11y = new Gio.Settings({schema_id: 'org.gnome.desktop.a11y.interface'});
+    a11y.set_boolean('high-contrast', true);
+    await sleep(800);
+    note(`high contrast: default sheet ${base()}`);
+    a11y.set_boolean('high-contrast', false);
+    await sleep(800);
+    note(`high contrast off: default sheet ${base()}`);
 
     note(`idle frames in 3 s: ${await frames(3000)}`);
 }

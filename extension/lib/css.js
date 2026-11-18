@@ -1,6 +1,9 @@
-// Builds Onyx's stylesheet from GNOME Shell's own one. Each rule keeps its
-// selectors; only the declarations whose colour changes are written out, so
-// sizes, radii and everything without colour stay GNOME's.
+// Builds Onyx's stylesheet from GNOME Shell's own one: a full copy of it
+// in which only the colours change, so sizes, radii and everything without
+// colour stay GNOME's. The extension loads it in place of GNOME's sheet, at
+// the bottom of St's cascade; loaded as an extension sheet on top, GNOME's
+// specific rules (StEntry:focus, #dash ... .overview-icon) would beat the
+// rules of every other extension.
 //
 // Dark: GNOME's greys move down onto black, near-white text becomes white.
 // Light: GNOME's light greys move up onto white, dark text becomes black.
@@ -148,8 +151,6 @@ export function mapDecl(decl, how) {
     return value === decl.value ? null : value;
 }
 
-const COLOUR_PROP = /color|^background|^border(-(top|right|bottom|left))?$|shadow/;
-
 const isIsland = selector =>
     DARK_IN_LIGHT.some(t => selector.includes(t)) &&
     !NOT_INVERTED.some(t => selector.includes(t));
@@ -167,7 +168,8 @@ const isIsland = selector =>
 /**
  * @param {string} gnomeCss GNOME Shell's stylesheet for this scheme
  * @param {Options} options
- * @returns {string}
+ * @returns {string} the whole sheet, or '' when every area is off (GNOME's
+ *     own sheet is then used as it is)
  */
 export function buildCss(gnomeCss, options) {
     const on = area => area === 'base'
@@ -184,21 +186,19 @@ export function buildCss(gnomeCss, options) {
     for (const rule of parseRules(gnomeCss)) {
         // Selectors of one rule can belong to different areas and can be
         // dark-in-light or not, so they are grouped by how they are mapped.
-        // A switched-off area still gets its rules, with GNOME's own values:
-        // they keep their place in the cascade, so a shared rule (".button")
-        // cannot win over its ".quick-toggle" rule.
+        // The top bar, the lock screen and switched-off areas keep GNOME's
+        // values; every rule is written, since this replaces GNOME's sheet.
         const groups = new Map();
         for (const selector of rule.selectors) {
             const area = areaOf(selector);
-            if (area === 'skip')
-                continue;
+            const original = area === 'skip' || !on(area);
             const how = {
                 scheme: options.scheme,
                 accent: options.accent,
-                island: options.scheme === 'light' && isIsland(selector),
-                overviewAlpha: area === 'overview' && OVERVIEW_SURFACES.some(t => selector.includes(t))
-                    ? alpha : null,
-                original: !on(area),
+                island: !original && options.scheme === 'light' && isIsland(selector),
+                overviewAlpha: !original && area === 'overview' &&
+                    OVERVIEW_SURFACES.some(t => selector.includes(t)) ? alpha : null,
+                original,
             };
             const key = `${how.island}|${how.overviewAlpha}|${how.original}`;
             if (!groups.has(key))
@@ -206,19 +206,11 @@ export function buildCss(gnomeCss, options) {
             groups.get(key).selectors.push(selector);
         }
         for (const {how, selectors} of groups.values()) {
-            const decls = [];
-            for (const decl of rule.decls) {
-                // Unchanged colour declarations are written too: GNOME's rules
-                // overwrite each other in order, and a later one left out
-                // would lose to an earlier one Onyx changed.
-                const value = mapDecl(decl, how);
-                if (value !== null)
-                    decls.push(`${decl.prop}: ${how.original ? decl.value : value};`);
-                else if (COLOUR_PROP.test(decl.prop))
-                    decls.push(`${decl.prop}: ${decl.value};`);
-            }
-            if (decls.length > 0)
-                out.push(`${selectors.join(', ')} { ${decls.join(' ')} }`);
+            const decls = rule.decls.map(decl => {
+                const value = how.original ? null : mapDecl(decl, how);
+                return `${decl.prop}: ${value ?? decl.value};`;
+            });
+            out.push(`${selectors.join(', ')} { ${decls.join(' ')} }`);
         }
     }
 

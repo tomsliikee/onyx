@@ -39,15 +39,16 @@ flowchart LR
     P --> A["Sort selectors by area<br/>lib/areas.js"]
     A --> M["Map colours<br/>lib/css.js + lib/palette.js"]
     S["Settings and<br/>colour scheme"] --> M
-    M --> F["$XDG_RUNTIME_DIR/onyx/onyx-N.css"]
-    F --> T["St theme<br/>load_stylesheet"]
+    M --> F["$XDG_RUNTIME_DIR/onyx/onyx-PID-N.css"]
+    F --> T["St theme<br/>in place of GNOME's sheet"]
 ```
 
-- **Built from GNOME's own theme:** Onyx reads the stylesheet the shell is using and writes out each rule's colour declarations again, with GNOME's greys moved onto black or white and `-st-accent-color` replaced by the text colour. Sizes, radii and spacing stay GNOME's. A GNOME update that adds or renames a selector is picked up without a change to Onyx.
-- **GNOME's order kept:** all colour declarations of a rule are written, changed or not, so a later GNOME rule still wins over an earlier one. A switched-off area gets its rules with GNOME's own values for the same reason.
+- **Built from GNOME's own theme:** Onyx reads the stylesheet the shell is using and writes a full copy of it, with GNOME's greys moved onto black or white and `-st-accent-color` replaced by the text colour. Sizes, radii and spacing stay GNOME's. A GNOME update that adds or renames a selector is picked up without a change to Onyx.
+- **In GNOME's place, not on top:** the copy replaces GNOME's sheet at the bottom of St's cascade, where the sheets of other extensions win over it as they win over GNOME's. Loaded as an extension sheet on top, GNOME's specific rules (`StEntry:focus`, the dash icons) beat other extensions' own styling: a grey field in Lantern, tiles behind Blur my Shell's transparent dash. When GNOME reloads its theme (scheme or high contrast change, `Main.loadTheme()`), Onyx's copy goes back in.
+- **GNOME's order kept:** every rule is written in GNOME's order, so a later GNOME rule still wins over an earlier one. A switched-off area, the top bar and the lock screen keep GNOME's own values.
 - **Dark in light:** GNOME keeps the OSD, Alt-Tab, the screenshot panel and the dash dark in its light theme. In light mode Onyx gives these the dark treatment and then inverts them, so they turn white with the rest.
 - **Light shell with light apps:** GNOME 50 keeps the whole shell dark unless the colour scheme is `prefer-light`, and the **Dark Style** toggle switches between `prefer-dark` and `default`. With this setting on (the default), `default` gives a light shell too.
-- **Cost:** the sheet is built once per change of scheme, accent or setting (*tested* with gjs: about 23 ms) and nothing runs in between. *Tested* headless: 0 to 1 painted frames in 3 idle seconds.
+- **Cost:** the sheet is built once per change of scheme or setting (*tested* with gjs: about 23 ms) and nothing runs in between. *Tested* headless: 0 to 1 painted frames in 3 idle seconds.
 - **High contrast:** when GNOME's high contrast is on, Onyx steps back.
 
 ## Settings

@@ -96,9 +96,21 @@ for (const scheme of ['dark', 'light']) {
         equal(value(css, '.quick-toggle:checked', 'color'), surface);
     });
 
-    test(`${scheme}: no accent and no top bar left in the sheet`, () => {
-        equal(css.includes('-st-accent'), false);
-        equal(/#panel|\.panel-button/.test(css), false);
+    test(`${scheme}: no accent left; top bar and lock screen keep GNOME's values`, () => {
+        const styled = rulesOf(css).filter(r => r.selectors.every(s => areaOf(s) !== 'skip'));
+        equal(styled.some(r => r.decls.some(d => d.value.includes('-st-accent'))), false);
+        for (const [selector, prop] of [['#panel', 'background-color'], ['.panel-button', 'color'],
+            ['.unlock-dialog', 'color']])
+            equal([selector, value(css, selector, prop)], [selector, value(GNOME[scheme], selector, prop)]);
+    });
+
+    test(`${scheme}: the sheet is a full copy of GNOME's, so it can replace it`, () => {
+        const selectors = sheet => new Set(rulesOf(sheet).flatMap(r => r.selectors));
+        const ours = selectors(css);
+        equal([...selectors(GNOME[scheme])].filter(s => !ours.has(s)), []);
+        equal(value(css, '.popup-menu-content', 'border-radius'),
+            value(GNOME[scheme], '.popup-menu-content', 'border-radius'));
+        equal(value(css, 'StEntry', 'padding'), value(GNOME[scheme], 'StEntry', 'padding'));
     });
 
     test(`${scheme}: the hairline only when switched on`, () => {
